@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Food Delivery App - Creational Patterns</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        h1 {
+            text-align: center;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        button {
+            margin-top: 15px;
+            padding: 8px 12px;
+        }
+        #order-summary {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #aaa;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Food Delivery App</h1>
+
+    <label for="food-select">Select Food:</label>
+    <select id="food-select">
+        <option value="Pizza">Pizza - ₹250</option>
+        <option value="Burger">Burger - ₹150</option>
+        <option value="Pasta">Pasta - ₹200</option>
+    </select>
+
+    <button onclick="addItem()">Add to Cart</button>
+
+    <label for="address-input">Delivery Address:</label>
+    <input type="text" id="address-input" placeholder="Enter address here" />
+
+    <label for="payment-select">Select Payment Method:</label>
+    <select id="payment-select">
+        <option value="UPI">UPI</option>
+        <option value="Wallet">Wallet</option>
+    </select>
+
+    <button onclick="placeOrder()">Place Order</button>
+    <button onclick="cloneOrder()">Clone Last Order</button>
+
+    <div id="order-summary">
+        <h3>Order Summary:</h3>
+        <pre id="summary-content">No order yet.</pre>
+    </div>
+
+    <script>
+        // ======= Singleton Pattern =======
+        class SessionManager {
+            constructor() {
+                if (SessionManager.instance) {
+                    return SessionManager.instance;
+                }
+                this.user = { name: "John Doe" };
+                SessionManager.instance = this;
+            }
+            getUser() {
+                return this.user;
+            }
+        }
+        const session = new SessionManager();
+
+        // ======= Factory Pattern =======
+        class Food {
+            constructor(name, price) {
+                this.name = name;
+                this.price = price;
+            }
+            getDetails() {
+                return `${this.name} - ₹${this.price}`;
+            }
+        }
+        class FoodFactory {
+            static createFood(type) {
+                switch(type) {
+                    case "Pizza": return new Food("Pizza", 250);
+                    case "Burger": return new Food("Burger", 150);
+                    case "Pasta": return new Food("Pasta", 200);
+                    default: return new Food("Unknown", 100);
+                }
+            }
+        }
+
+        // ======= Abstract Factory Pattern =======
+        class Payment {
+            pay(amount) {
+                console.log(`Paying ${amount}`);
+            }
+        }
+        class UPI extends Payment {
+            pay(amount) {
+                return `Paid ₹${amount} using UPI`;
+            }
+        }
+        class Wallet extends Payment {
+            pay(amount) {
+                return `Paid ₹${amount} using Wallet`;
+            }
+        }
+        class PaymentFactory {
+            static createPayment(type) {
+                switch(type) {
+                    case "UPI": return new UPI();
+                    case "Wallet": return new Wallet();
+                    default: return new Payment();
+                }
+            }
+        }
+
+        // ======= Builder Pattern =======
+        class Order {
+            constructor() {
+                this.items = [];
+                this.address = '';
+            }
+            show() {
+                let details = `User: ${session.getUser().name}\n`;
+                details += `Address: ${this.address}\n`;
+                details += `Items:\n`;
+                this.items.forEach((item, index) => {
+                    details += ` ${index + 1}. ${item.getDetails()}\n`;
+                });
+                return details;
+            }
+        }
+        class OrderBuilder {
+            constructor() {
+                this.order = new Order();
+            }
+            addItem(item) {
+                this.order.items.push(item);
+                return this;
+            }
+            setAddress(address) {
+                this.order.address = address;
+                return this;
+            }
+            build() {
+                return this.order;
+            }
+        }
+
+        // ======= Prototype Pattern =======
+        class PrototypeOrder {
+            constructor(order) {
+                this.items = [...order.items];
+                this.address = order.address;
+            }
+            clone() {
+                return new PrototypeOrder(this);
+            }
+        }
+
+        // ======= App Logic =======
+        let currentOrder = null;
+        let lastOrder = null;
+
+        function addItem() {
+            const foodType = document.getElementById("food-select").value;
+            const food = FoodFactory.createFood(foodType);
+            if (!currentOrder) {
+                currentOrder = new OrderBuilder();
+            }
+            currentOrder.addItem(food);
+            updateSummary();
+        }
+
+        function placeOrder() {
+            if (!currentOrder) {
+                alert("Please add items first.");
+                return;
+            }
+            const address = document.getElementById("address-input").value.trim();
+            if (!address) {
+                alert("Please enter an address.");
+                return;
+            }
+            currentOrder.setAddress(address);
+            const order = currentOrder.build();
+            const paymentType = document.getElementById("payment-select").value;
+            const payment = PaymentFactory.createPayment(paymentType);
+            const total = order.items.reduce((sum, item) => sum + item.price, 0);
+            const paymentInfo = payment.pay(total);
+
+            alert(paymentInfo);
+
+            lastOrder = new PrototypeOrder(order);
+            currentOrder = null;
+            updateSummary(order.show());
+        }
+
+        function cloneOrder() {
+            if (!lastOrder) {
+                alert("No order to clone.");
+                return;
+            }
+            const cloned = lastOrder.clone();
+            currentOrder = new OrderBuilder();
+            cloned.items.forEach(item => currentOrder.addItem(item));
+            currentOrder.setAddress(cloned.address);
+            updateSummary(cloned.show());
+        }
+
+        function updateSummary(text = "No order yet.") {
+            document.getElementById("summary-content").textContent = text;
+        }
+    </script>
+</body>
+</html>
